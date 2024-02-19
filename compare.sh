@@ -334,6 +334,7 @@ dependency_check() {
         'gdate'
         'grep'
         'gstat'
+        'jd'
         'jq'
         'realpath'
         'sed'
@@ -754,6 +755,70 @@ process_lastpass_note_fields() {
     fi
 }
 
+transform_lastpass_item_json() {
+    local -a jq_filters=()
+
+    local jq_filters_string
+
+    if [[ ${item_type_code} -eq 1 ]]; then
+        # map empty fido2Credentials array to null
+        jq_filters+=('.login.fido2Credentials = if ( .login.fido2Credentials | length ) == 0 then null else .login.fido2Credentials end')
+
+        jq_filters+=('if .login.passwordRevisionDate == null then del( .login.passwordRevisionDate ) end')
+
+        jq_filters+=('.login.username = if .login.username == null then "" else .login.username end')
+        jq_filters+=('.login.password = if .login.password == null then "" else .login.password end')
+    else
+        jq_filters+=('.')
+    fi
+
+    jq_filters_string=$(join_array ' | ' "${jq_filters[@]}")
+
+    printf '%s' "$1" | jq \
+      --compact-output \
+       "${jq_filters_string}"
+}
+
+transform_vault_item_json() {
+    local -a jq_filters=()
+
+    local jq_filters_string
+
+    # map empty notes to null
+    # shellcheck disable=SC2016
+    jq_filters+=('.notes = if ( $notes | length ) == 0 then null else $notes end')
+
+    jq_filters_string=$(join_array ' | ' "${jq_filters[@]}")
+
+    printf '%s' "$1" | jq \
+      --compact-output \
+      --arg notes "${lastpass_item_notes}" \
+       "${jq_filters_string}"
+}
+
+compare_item_json() {
+    local lastpass_item_json
+    local vault_item_json
+
+    debug "Comparing item (ID: '${lastpass_item_id}')."
+
+    lastpass_item_json=$(transform_lastpass_item_json "$1")
+    vault_item_json=$(transform_vault_item_json "$2")
+
+    debug "LastPass Item JSON: '${lastpass_item_json}'"
+    debug "Vault Item JSON: '${vault_item_json}'"
+
+    diff_output=$(jd -set \
+      <(printf '%s\n' "${lastpass_item_json}") \
+      <(printf '%s\n' "${vault_item_json}"))
+
+    if [[ -z ${diff_output} ]]; then
+        debug "LastPass and Vault are identical."
+    else
+        debug "Diff: ${diff_output}"
+    fi
+}
+
 process_item() {
     local lastpass_item_json
     local lastpass_item_id
@@ -770,6 +835,7 @@ process_item() {
     local uris
     local expiration_date
     local expiration_month_name
+    local original_bitwarden_item_json
     local bitwarden_item_json
     local bitwarden_item_id
     local folder_id
@@ -1016,7 +1082,9 @@ process_item() {
 
     readonly long_lastpass_item_notes
 
-    bitwarden_item_json=$(get_bitwarden_item_json "${lastpass_item_id}")
+    original_bitwarden_item_json=$(get_bitwarden_item_json "${lastpass_item_id}")
+
+    bitwarden_item_json=${original_bitwarden_item_json}
 
     # add remaining notes fields
     for field in "${!note_field_values[@]}"; do
@@ -1034,9 +1102,7 @@ process_item() {
       --arg notes "${lastpass_item_notes}" \
        "${jq_filters_string}")
 
-    debug "Comparing item (ID: '${lastpass_item_id}')."
-
-    # TODO: compare here
+    compare_item_json "${original_bitwarden_item_json}" "${bitwarden_item_json}"
 }
 
 show_progress() {

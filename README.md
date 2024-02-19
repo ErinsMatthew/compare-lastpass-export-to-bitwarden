@@ -7,7 +7,9 @@ to [Bitwarden](https://bitwarden.com/).
 
 This script will compare items exported from LastPass using
 [lastpass-export](https://github.com/ErinsMatthew/lastpass-export) to those in a
-Bitwarden vault using the [Bitwarden CLI](https://bitwarden.com/help/cli/).
+Bitwarden vault using the [Bitwarden CLI](https://bitwarden.com/help/cli/). It
+does so by first converting the item into a Bitwarden JSON format, and then
+performing a standard diff.
 
 ## Execution
 
@@ -40,6 +42,7 @@ $ compare.sh -d -p passphrase.txt /tmp/lpass
 - `gpg` - optional; GNU Privacy Guard; install using [Homebrew](https://formulae.brew.sh/formula/gnupg), another package manager, or [manually](https://gnupg.org/).
 - `grep` - pre-installed with macOS and most Linux distributions.
 - `gstat` - install via coreutils using [Homebrew](https://formulae.brew.sh/formula/coreutils), another package manager, or [manually](https://www.gnu.org/software/coreutils/).
+- `jd` - install using [Homebrew](https://formulae.brew.sh/formula/jd), another package manager, or [manually](https://github.com/josephburnett/jd).
 - `jq` - install using [Homebrew](https://formulae.brew.sh/formula/jq), another package manager, or [manually](https://stedolan.github.io/jq/).
 - `mktemp` - pre-installed with macOS and most Linux distributions.
 - `openssl` - optional; OpenSSL; older version pre-installed with macOS and most Linux distributions; install newer version using [Homebrew](https://formulae.brew.sh/formula/openssl@3), another package manager, or [manually](https://www.openssl.org/source/)
